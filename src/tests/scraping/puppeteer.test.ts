@@ -1,7 +1,7 @@
 import { Browser, Page } from 'puppeteer-core';
 import { PuppeteerBrowser } from '../../lib/classes';
 
-const timeout = 60000;
+export const timeout = 60000;
 
 describe('Puppeteer Test', () => {
   let browser: Browser;
