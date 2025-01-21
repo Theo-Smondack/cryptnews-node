@@ -8,13 +8,8 @@ interface GetNewsResponse {
 export async function getNews(): Promise<GetNewsResponse> {
   try {
     const newsScraper = new NewsScraper();
-
-    const articles = await newsScraper.scrape();
-
-    console.log(articles);
-
+    await newsScraper.scrape();
     return { success: true };
-
   } catch (error) {
     console.error(error);
     return {

@@ -13,7 +13,12 @@ if (require.main === module) {
   });
 
   cron.schedule('*/5 * * * *', async () => {
-    console.log('Running getNews job');
-    await getNews();
+    await getNews().then((response) => {
+      if (response.error) {
+        console.error(response.error);
+      } else {
+        console.log('News scraped successfully');
+      }
+    });
   });
 }

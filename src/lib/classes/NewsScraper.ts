@@ -1,7 +1,9 @@
 import { NewsExtractionStrategyFactory } from './NewsExtractionStrategyFactory';
-import { NewsArticle, ScraperOptions } from '../../types/classes/NewsScraper';
+import { NewsArticle, ScraperOptions, ScrapingRsp } from '../../types/classes/NewsScraper';
 import { scrapeUrls } from '../../config/puppeteer';
 import { PuppeteerBrowser } from './PuppeteerBrowser';
+import { updateExistingArticlesByProvider } from '../../services/article';
+import { isTestEnv } from '../utils';
 
 export class NewsScraper {
     private strategyFactory: NewsExtractionStrategyFactory = new NewsExtractionStrategyFactory();
@@ -11,17 +13,20 @@ export class NewsScraper {
         this.urls = urls || scrapeUrls;
     }
 
-    async scrape(): Promise<NewsArticle[]> {
-        const articles: NewsArticle[] = [];
-        await Promise.all(
-            this.urls.map(async (url) => {
-                articles.push(...(await this.extractArticles({ url })));
-            }),
-        );
-        return articles;
+    async scrape(): Promise<ScrapingRsp> {
+        try {
+            await Promise.all(
+              this.urls.map(async (url) => {
+                  await this.extractArticles({ url });
+              }),
+            );
+            return { success: true };
+        } catch (error) {
+            throw error;
+        }
     }
 
-    private async extractArticles(options: ScraperOptions): Promise<NewsArticle[]> {
+    private async extractArticles(options: ScraperOptions): Promise<ScrapingRsp> {
         const strategyKey = this.extractStrategyKey(options.url);
         const extractionStrategy = this.strategyFactory.getStrategy(strategyKey);
 
@@ -46,7 +51,7 @@ export class NewsScraper {
                         });
 
                         const content = await extractionStrategy.extractArticleContent(articlePage);
-                        return { url: articleUrl, content };
+                        return { url: articleUrl, content, provider: strategyKey };
                     } catch (error) {
                         console.error(`Failed to scrape ${articleUrl}:`, error);
                         return null;
@@ -55,7 +60,11 @@ export class NewsScraper {
                     }
                 }),
             );
-            return articles.filter((article): article is NewsArticle => article !== null);
+            const filteredArticles = articles.filter((article): article is NewsArticle => article !== null);
+            if (!isTestEnv()) {
+                await updateExistingArticlesByProvider(filteredArticles);
+            }
+            return { success: true };
         } catch (error) {
             console.error('Failed to scrape data:', error);
             throw error;
