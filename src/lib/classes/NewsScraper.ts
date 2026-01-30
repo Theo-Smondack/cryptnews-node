@@ -1,3 +1,4 @@
+import { Page } from 'puppeteer-core';
 import { NewsExtractionStrategyFactory } from './NewsExtractionStrategyFactory';
 import { NewsArticle, ScraperOptions, ScrapingRsp } from '../../types/classes/NewsScraper';
 import { scrapeUrls } from '../../config/puppeteer';
@@ -14,16 +15,16 @@ export class NewsScraper {
     }
 
     async scrape(): Promise<ScrapingRsp> {
-        try {
-            await Promise.all(
-              this.urls.map(async (url) => {
-                  await this.extractArticles({ url });
-              }),
-            );
-            return { success: true };
-        } catch (error) {
-            throw error;
+        // Process URLs sequentially to avoid overwhelming the browser
+        for (const url of this.urls) {
+            try {
+                await this.extractArticles({ url });
+            } catch (error) {
+                console.error(`Failed to scrape ${url}:`, error);
+                // Continue with next URL instead of failing everything
+            }
         }
+        return { success: true };
     }
 
     private async extractArticles(options: ScraperOptions): Promise<ScrapingRsp> {
@@ -41,25 +42,27 @@ export class NewsScraper {
             });
 
             const articleUrls = await extractionStrategy.extractArticleUrls(page);
-            const articles = await Promise.all(
-                articleUrls.slice(0, options.maxArticles ?? 4).map(async (articleUrl) => {
-                    const articlePage = await browser.newPage();
-                    try {
-                        await articlePage.goto(articleUrl, {
-                            waitUntil: 'networkidle0',
-                            timeout: options.timeout ?? 30000,
-                        });
+            const articles: (NewsArticle | null)[] = [];
 
-                        const content = await extractionStrategy.extractArticleContent(articlePage);
-                        return { url: articleUrl, content, provider: strategyKey };
-                    } catch (error) {
-                        console.error(`Failed to scrape ${articleUrl}:`, error);
-                        return null;
-                    } finally {
-                        await articlePage.close();
-                    }
-                }),
-            );
+            // Process articles sequentially to avoid browser overload
+            for (const articleUrl of articleUrls.slice(0, options.maxArticles ?? 4)) {
+                const articlePage = await browser.newPage();
+                try {
+                    await articlePage.goto(articleUrl, {
+                        waitUntil: 'networkidle0',
+                        timeout: options.timeout ?? 30000,
+                    });
+
+                    const content = await extractionStrategy.extractArticleContent(articlePage);
+                    articles.push({ url: articleUrl, content, provider: strategyKey });
+                } catch (error) {
+                    console.error(`Failed to scrape ${articleUrl}:`, error);
+                    articles.push(null);
+                } finally {
+                    await this.safeClosePage(articlePage);
+                }
+            }
+
             const filteredArticles = articles.filter((article): article is NewsArticle => article !== null);
             if (!isTestEnv()) {
                 await updateExistingArticlesByProvider(filteredArticles);
@@ -69,7 +72,17 @@ export class NewsScraper {
             console.error('Failed to scrape data:', error);
             throw error;
         } finally {
-            await page.close();
+            await this.safeClosePage(page);
+        }
+    }
+
+    private async safeClosePage(page: Page): Promise<void> {
+        try {
+            if (!page.isClosed()) {
+                await page.close();
+            }
+        } catch {
+            // Page already closed or browser disconnected - ignore
         }
     }
 
