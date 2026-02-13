@@ -27,42 +27,34 @@ describe('CoinTribune scraping strategy Test', () => {
         }
     });
 
-    it('should return the article urls', async () => {
+    it('should return 4 article urls', async () => {
         const urls = await extractionStrategy.extractArticleUrls(page);
-
         expect(urls).toHaveLength(4);
+    }, timeout);
+
+    it('should return urls matching cointribune domain pattern', async () => {
+        const urls = await extractionStrategy.extractArticleUrls(page);
         expect(urls.every((u) => /^https:\/\/www\.cointribune\.com\/.+/.test(u))).toBe(true);
     }, timeout);
 
-    it('should return valid cointribune article links', async () => {
+    it('should return urls that are not the listing page', async () => {
         const urls = await extractionStrategy.extractArticleUrls(page);
-
-        expect(urls.length).toBeGreaterThan(0);
-        expect(urls.every((u) => u.includes('cointribune.com') && !/\/actu\/?$/.test(u))).toBe(true);
+        expect(urls.every((u) => !/\/actu\/?$/.test(u))).toBe(true);
     }, timeout);
 
-    it('should return the article content', async () => {
+    it('should return non-empty article content', async () => {
         const urls = await extractionStrategy.extractArticleUrls(page);
-        expect(urls.length).toBeGreaterThan(0);
-
         await page.goto(urls[0], { waitUntil: 'networkidle2' });
         const content = await extractionStrategy.extractArticleContent(page);
-
-        expect(content).not.toHaveLength(0);
         expect(content.length).toBeGreaterThan(2);
     }, timeout);
 
-    it('should return content without CTA/promotional text', async () => {
+    it('should return content without promotional text', async () => {
         const urls = await extractionStrategy.extractArticleUrls(page);
-        expect(urls.length).toBeGreaterThan(0);
-
         await page.goto(urls[0], { waitUntil: 'networkidle2' });
         const content = await extractionStrategy.extractArticleContent(page);
-
         const joinedContent = content.join(' ').toLowerCase();
-        expect(joinedContent).not.toContain('inscrivez-vous');
-        expect(joinedContent).not.toContain("ceci n'est pas un conseil");
-        expect(joinedContent).not.toContain('résumer cet article');
+        expect(joinedContent.includes('inscrivez-vous') || joinedContent.includes("ceci n'est pas un conseil") || joinedContent.includes('résumer cet article')).toBe(false);
     }, timeout);
 
     afterAll(async () => {
