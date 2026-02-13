@@ -2,7 +2,7 @@ import { NewsScraper } from '../../lib/classes/NewsScraper';
 
 describe('News scraper Test', () => {
   it('should return an array of NewArticles', async () => {
-    const newsScraper = new NewsScraper(['https://coinacademy.fr/actualites/']);
+    const newsScraper = new NewsScraper(['https://www.cointribune.com/actu/']);
     await expect(newsScraper.scrape()).resolves.toEqual({ success: true });
   }, 60000);
 

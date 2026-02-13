@@ -48,8 +48,8 @@ export class NewsScraper {
 
         try {
             await page.goto(options.url, {
-                waitUntil: 'networkidle2',
-                timeout: options.timeout ?? 30000,
+                waitUntil: 'domcontentloaded',
+                timeout: options.timeout ?? 60000,
             });
 
             const articleUrls = await extractionStrategy.extractArticleUrls(page);
@@ -115,7 +115,6 @@ export class NewsScraper {
 
     private extractStrategyKey(url: string): string {
         const hostname = new URL(url).hostname;
-        if (hostname.includes('coinacademy')) return 'coinacademy';
         if (hostname.includes('journalducoin')) return 'journalducoin';
         if (hostname.includes('cointribune')) return 'cointribune';
         throw new Error(`No strategy found for URL: ${url}`);
