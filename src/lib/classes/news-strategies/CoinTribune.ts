@@ -3,7 +3,6 @@ import { INewsExtractionStrategy } from '../../../types/classes/NewsExtractionSt
 
 export class CoinTribune implements INewsExtractionStrategy {
     async extractArticleUrls(page: Page): Promise<string[]> {
-        // Wait for article links to load
         await page.waitForSelector('a.cointribune--a-la-une--item--post', { timeout: 10000 });
 
         return await page.evaluate(() => {
@@ -17,7 +16,6 @@ export class CoinTribune implements INewsExtractionStrategy {
     }
 
     async extractArticleContent(page: Page): Promise<string[]> {
-        // Wait for article content to load
         await page.waitForSelector('.wp-content', { timeout: 10000 });
 
         return await page.evaluate(() => {
@@ -27,9 +25,7 @@ export class CoinTribune implements INewsExtractionStrategy {
             return Array.from(contentDiv.querySelectorAll('p, h2, h3'))
                 .filter((el) => {
                     const text = el.textContent?.trim() || '';
-                    // Filter out empty or very short paragraphs
                     if (text.length < 10) return false;
-                    // Filter out common CTA/promo patterns
                     const lowerText = text.toLowerCase();
                     if (lowerText.includes('inscrivez-vous')) return false;
                     if (lowerText.includes('rejoignez-nous')) return false;

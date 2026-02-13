@@ -8,7 +8,7 @@ import { timeout } from '../puppeteer.test';
 describe('CoinTribune scraping strategy Test', () => {
     let extractionStrategy: INewsExtractionStrategy;
     let browser: Browser;
-    const url = scrapeUrls[2]; // https://www.cointribune.com/actu/
+    const url = scrapeUrls[2];
     let page: Page;
 
     beforeAll(async () => {
@@ -31,19 +31,14 @@ describe('CoinTribune scraping strategy Test', () => {
         const urls = await extractionStrategy.extractArticleUrls(page);
 
         expect(urls).toHaveLength(4);
-        urls.forEach((url) => {
-            expect(url).toMatch(/^https:\/\/www\.cointribune\.com\/.+/);
-        });
+        expect(urls.every((u) => /^https:\/\/www\.cointribune\.com\/.+/.test(u))).toBe(true);
     }, timeout);
 
     it('should return valid cointribune article links', async () => {
         const urls = await extractionStrategy.extractArticleUrls(page);
 
         expect(urls.length).toBeGreaterThan(0);
-        urls.forEach((url) => {
-            expect(url).toContain('cointribune.com');
-            expect(url).not.toMatch(/\/actu\/?$/); // Should be individual article, not the listing
-        });
+        expect(urls.every((u) => u.includes('cointribune.com') && !/\/actu\/?$/.test(u))).toBe(true);
     }, timeout);
 
     it('should return the article content', async () => {
@@ -54,7 +49,7 @@ describe('CoinTribune scraping strategy Test', () => {
         const content = await extractionStrategy.extractArticleContent(page);
 
         expect(content).not.toHaveLength(0);
-        expect(content.length).toBeGreaterThan(2); // Should have multiple paragraphs
+        expect(content.length).toBeGreaterThan(2);
     }, timeout);
 
     it('should return content without CTA/promotional text', async () => {
@@ -64,11 +59,10 @@ describe('CoinTribune scraping strategy Test', () => {
         await page.goto(urls[0], { waitUntil: 'networkidle2' });
         const content = await extractionStrategy.extractArticleContent(page);
 
-        content.forEach((paragraph) => {
-            expect(paragraph.toLowerCase()).not.toContain('inscrivez-vous');
-            expect(paragraph.toLowerCase()).not.toContain("ceci n'est pas un conseil");
-            expect(paragraph.toLowerCase()).not.toContain('résumer cet article');
-        });
+        const joinedContent = content.join(' ').toLowerCase();
+        expect(joinedContent).not.toContain('inscrivez-vous');
+        expect(joinedContent).not.toContain("ceci n'est pas un conseil");
+        expect(joinedContent).not.toContain('résumer cet article');
     }, timeout);
 
     afterAll(async () => {
